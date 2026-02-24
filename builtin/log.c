@@ -1415,7 +1415,7 @@ static void make_cover_letter(struct rev_info *rev, int use_separate_file,
 
 	if (skip_prefix(format, "log:", &format)) {
 		generate_commit_list_cover(rev->diffopt.file, format, list, nr);
-	} else {
+	} else if (!strcmp(format, "shortlog")) {
 		shortlog_init(&log);
 		log.wrap_lines = 1;
 		log.wrap = MAIL_DEFAULT_WRAP;
@@ -1428,6 +1428,8 @@ static void make_cover_letter(struct rev_info *rev, int use_separate_file,
 			shortlog_add_commit(&log, list[i]);
 
 		shortlog_output(&log);
+	} else {
+		die(_("--cover-letter: invalid format spec '%s'"), format);
 	}
 
 	/* We can only do diffstat with a unique reference point */
@@ -1946,7 +1948,7 @@ int cmd_format_patch(int argc,
 	int just_numbers = 0;
 	int ignore_if_in_upstream = 0;
 	int cover_letter = -1;
-	char *cover_letter_fmt = NULL;
+	const char *cover_letter_fmt = NULL;
 	int boundary_count = 0;
 	int no_binary_diff = 0;
 	int zero_commit = 0;
@@ -2333,12 +2335,11 @@ int cmd_format_patch(int argc,
 		goto done;
 	total = list.nr;
 
-	if (cover_letter_fmt && (strcmp(cover_letter_fmt, "shortlog") && strncmp(cover_letter_fmt, "log:", 4))) {
-		die(_("--cover-letter: invalid format spec"));
-	}
-
-	if (!cover_letter_fmt)
+	if (!cover_letter_fmt) {
 		cover_letter_fmt = cfg.fmt_cover_letter_commit_list;
+		if (!cover_letter_fmt)
+			cover_letter_fmt = "shortlog";
+	}
 
 	if (cover_letter == -1) {
 		if (cfg.config_cover_letter == COVER_AUTO)
@@ -2426,9 +2427,6 @@ int cmd_format_patch(int argc,
 	}
 	rev.numbered_files = just_numbers;
 	rev.patch_suffix = fmt_patch_suffix;
-
-	if (cover_letter && !cover_letter_fmt)
-		cover_letter_fmt = "shortlog";
 
 	if (cover_letter) {
 		if (cfg.thread)
